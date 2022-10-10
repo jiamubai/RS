@@ -70,7 +70,6 @@ def test():
   net.to(device)
   net.eval()
   test_loss = 0
-  train_loss = 0
   correct = 0
   with torch.no_grad():
     for data, target in test_loader:
@@ -80,16 +79,13 @@ def test():
       test_loss += criterion(output, target)
       pred = output.data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
-  # test_loss /= len(test_loader.dataset)
+  test_loss /= len(test_loader.dataset)
   test_losses.append(test_loss)
-  # train_loss /= len(train_loader.dataset)
-  # train_losses.append(train_losses)
-  print('\nTrain set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+  print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
     test_loss, correct, len(test_loader.dataset),
     100. * correct / len(test_loader.dataset)))
 
-# net = SketchNetwork(K = 14, R = 6000, d = 28*28, OUT = 10, aggregation = 'avg', dropout_rate = 0.0, hash_func = 'P-stable')
-# device = 'cuda:3'
+
 device = input("Device: ")
 model= input("Model(RS/MLP/Pretrain inference): ")
 net = resnet50(weights=ResNet50_Weights.DEFAULT)
@@ -101,9 +97,9 @@ if model == 'RS':
   net.fc = SketchNetwork(K=4, R=4000, d=num_ftrs, OUT=10, aggregation='avg', hash_func='SRP',
                                       dropout_rate=0.0, scale=5.0, backprop='STE')
 elif model == 'MLP':
-  # for param in net.parameters():
-  #   param.requires_grad = False
-  # num_ftrs = net.fc.in_features
+  for param in net.parameters():
+    param.requires_grad = False
+  num_ftrs = net.fc.in_features
   net.fc = torch.nn.Linear(net.fc.in_features, 10)
   torch.nn.init.xavier_uniform_(net.fc.weight)
   # net.fc = nn.Sequential(nn.Linear(num_ftrs, 256),
@@ -115,11 +111,8 @@ elif model == 'MLP':
   #                          nn.Linear(32, 10))
 
 optimizer = optim.Adam(net.parameters(), lr=learning_rate)
-params_1x = [param for name, param in net.named_parameters() if 'fc' not in str(name)]
-# lr = int(input("Learning rate:"))
-# optimizer = torch.optim.Adam([{'params':params_1x}, {'params': net.fc.parameters(), 'lr': lr*1000}], lr=lr, weight_decay=weight_decay)
 criterion = nn.CrossEntropyLoss().to(device)
-# net.to('cuda:3')
+
 test()
 for epoch in range(1, n_epochs + 1):
   train(epoch)
